@@ -33,6 +33,12 @@ const adNetworkUserAgents = [
     "googlebot", "facebookexternalhit", "Facebot", "Twitterbot", "LinkedInBot", "TikTokBot"
 ];
 
+// ✅ Detect if request is from an ad network bot
+function isAdReviewer(req) {
+    const agent = req.headers["user-agent"]?.toLowerCase() || "";
+    return adNetworkUserAgents.some(bot => agent.includes(bot));
+}
+
 // ✅ Fetch ASN for the given IP
 async function getASN(ip) {
     try {
