@@ -9,7 +9,7 @@ app.use(cors());
 
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 
-// 🚀 Improved bot detection rules
+// 🚀 Known bot organizations (including AWS, Google, Cloudflare, etc.)
 const botOrganizations = [
     "Amazon AWS",
     "Amazon Technologies Inc.",
@@ -24,7 +24,7 @@ const botOrganizations = [
     "Microsoft Azure"
 ];
 
-// 🚀 AWS ASN (Autonomous System Number) list
+// 🚀 Known AWS ASNs (Autonomous System Numbers)
 const awsASNs = [
     "AS14618", // Amazon AWS
     "AS16509", // Amazon EC2
@@ -36,19 +36,29 @@ const awsASNs = [
 // ✅ Backup ASN Lookup (if `ipinfo.io` fails)
 async function getASN(ip) {
     try {
-        // Primary ASN Lookup (ipinfo.io)
-        const ipInfoResponse = await axios.get(`https://ipinfo.io/${ip}/json?token=c180f76ac7988c`);
-        if (ipInfoResponse.data.asn) return ipInfoResponse.data.asn;
+        console.log(`🌐 Fetching ASN for IP: ${ip}`);
 
-        // Backup ASN Lookup (ip-api.com)
-        const ipApiResponse = await axios.get(`http://ip-api.com/json/${ip}?fields=as,isp,org`);
-        return ipApiResponse.data.as || "Unknown";
+        // ✅ Primary ASN Lookup (ipinfo.io)
+        const ipInfoResponse = await axios.get(`https://ipinfo.io/${ip}/json?token=c180f76ac7988c`);
+        if (ipInfoResponse.data.asn) {
+            console.log(`✅ ASN Found (ipinfo.io): ${ipInfoResponse.data.asn}`);
+            return ipInfoResponse.data.asn;
+        }
+
+        // ✅ Backup ASN Lookup (ip-api.com)
+        const ipApiResponse = await axios.get(`http://ip-api.com/json/${ip}?fields=as`);
+        if (ipApiResponse.data.as) {
+            console.log(`✅ ASN Found (ip-api.com): ${ipApiResponse.data.as}`);
+            return ipApiResponse.data.as;
+        }
+
+        console.warn(`⚠ ASN Not Found for IP: ${ip}`);
+        return "Unknown"; // Fallback if both fail
     } catch (error) {
         console.error("❌ Error fetching ASN:", error.message);
         return "Unknown";
     }
 }
-
 
 // ✅ Local bot detection (before AI analysis)
 function isBot(visitorData) {
@@ -92,9 +102,9 @@ async function analyzeVisitor(visitorData) {
 app.post("/analyze", async (req, res) => {
     const visitorData = req.body;
 
-    // Fetch ASN (Autonomous System Number)
+    // Fetch ASN (Ensures it’s NOT undefined)
     visitorData.asn = await getASN(visitorData.ip);
-    visitorData.organization = visitorData.organization || "Unknown"; 
+    visitorData.organization = visitorData.organization || "Unknown";
 
     console.log("🔍 Incoming Visitor Data:", visitorData);
 
