@@ -67,25 +67,40 @@ async function getASN(ip) {
 
 // ✅ API Route to Classify Visitors
 app.post("/analyze", async (req, res) => {
-    const visitorData = req.body;
-    visitorData.asn = await getASN(visitorData.ip);
-    visitorData.isProxyOrVPN = await checkProxyVPN(visitorData.ip);
-    const aiResult = await analyzeVisitor(visitorData);
-    const finalResult = visitorData.isProxyOrVPN ? "bot" : aiResult;
+    try {
+        const visitorData = req.body;
+        if (!visitorData || !visitorData.ip) {
+            console.error("❌ Invalid request. Missing IP:", visitorData);
+            return res.status(400).json({ error: "Invalid request. IP address is missing." });
+        }
 
-    if (finalResult === "bot" || isAdReviewer(req)) {
-        blockedIPs[visitorData.ip] = true;
-        fs.writeFileSync(BLOCKED_IPS_FILE, JSON.stringify(blockedIPs, null, 2));
-        return res.status(403).json({ error: "Access Denied", reason: "Bot Detected", ip: visitorData.ip });
+        visitorData.asn = await getASN(visitorData.ip);
+        visitorData.isProxyOrVPN = await checkProxyVPN(visitorData.ip);
+        const aiResult = await analyzeVisitor(visitorData);
+        const finalResult = visitorData.isProxyOrVPN ? "bot" : aiResult;
+
+        if (finalResult === "bot" || isAdReviewer(req)) {
+            blockedIPs[visitorData.ip] = true;
+            fs.writeFileSync(BLOCKED_IPS_FILE, JSON.stringify(blockedIPs, null, 2));
+            return res.status(403).json({ error: "Access Denied", reason: "Bot Detected", ip: visitorData.ip });
+        }
+        res.json({ result: finalResult });
+    } catch (error) {
+        console.error("❌ Error processing /analyze:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-    res.json({ result: finalResult });
 });
 
 app.get("/", (req, res) => {
-    if (isAdReviewer(req)) {
-        return res.send("Clean Content");
+    try {
+        if (isAdReviewer(req)) {
+            return res.send("Clean Content");
+        }
+        res.send("Cloaked Content");
+    } catch (error) {
+        console.error("❌ Error processing / request:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
-    res.send("Cloaked Content");
 });
 
 app.listen(3000, () => console.log("Server running on port 3000"));
