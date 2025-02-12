@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 
 // 🚀 Improved bot detection function
 const botOrganizations = [
@@ -43,13 +43,13 @@ function isBot(visitorData) {
         visitorData.confidenceScore < 0.8;
 }
 
-// 🚀 OpenAI-based AI Bot Detection
+// 🚀 Mistral AI Bot Detection
 async function analyzeVisitor(visitorData) {
     try {
         const response = await axios.post(
-            "https://api.openai.com/v1/chat/completions",
+            "https://api.mistral.ai/v1/chat/completions",
             {
-                model: "gpt-3.5-turbo",  // 🔥 FIXED: Use GPT-3.5 Turbo instead of GPT-4
+                model: "mistral-tiny", // ✅ Use Mistral-tiny for free & fast processing
                 messages: [
                     { role: "system", content: "You are an AI bot detector. Analyze the visitor data and determine if this is a bot or a human. Respond with 'bot' or 'human'." },
                     { role: "user", content: `Analyze this visitor data: ${JSON.stringify(visitorData)}. Classify as 'bot' or 'human'.` }
@@ -58,13 +58,13 @@ async function analyzeVisitor(visitorData) {
                 max_tokens: 10
             },
             {
-                headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
+                headers: { Authorization: `Bearer ${MISTRAL_API_KEY}` }
             }
         );
 
         return response.data.choices[0].message.content.toLowerCase();
     } catch (error) {
-        console.error("❌ OpenAI API Error:", error.response ? error.response.data : error.message);
+        console.error("❌ Mistral API Error:", error.response ? error.response.data : error.message);
         return "unknown";  // ✅ Fallback to prevent API errors from breaking detection
     }
 }
@@ -95,7 +95,7 @@ app.post("/analyze", async (req, res) => {
 
 // 🚀 Server Start
 app.get("/", (req, res) => {
-    res.send("AI Bot Detection Server is running.");
+    res.send("Mistral AI Bot Detection Server is running.");
 });
 
 const PORT = process.env.PORT || 3000;
