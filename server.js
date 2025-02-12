@@ -9,7 +9,7 @@ app.use(cors());
 
 const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
 
-// 🚀 Improved bot detection function
+// 🚀 Improved bot detection rules
 const botOrganizations = [
     "Amazon AWS",
     "Amazon Technologies Inc.",
@@ -24,7 +24,7 @@ const botOrganizations = [
     "Microsoft Azure"
 ];
 
-// 🚀 Improved AWS ASN detection
+// 🚀 AWS ASN (Autonomous System Number) list
 const awsASNs = [
     "AS14618", // Amazon AWS
     "AS16509", // Amazon EC2
@@ -33,6 +33,22 @@ const awsASNs = [
     "AS14686"  // Amazon Services
 ];
 
+// ✅ Backup ASN Lookup (if `ipinfo.io` fails)
+async function getASN(ip) {
+    try {
+        const ipInfoResponse = await axios.get(`https://ipinfo.io/${ip}/json?token=c180f76ac7988c`);
+        if (ipInfoResponse.data.asn) return ipInfoResponse.data.asn;
+
+        // 🛑 If `ipinfo.io` fails, use `ip-api.com` as backup
+        const ipApiResponse = await axios.get(`http://ip-api.com/json/${ip}?fields=as`);
+        return ipApiResponse.data.as || "Unknown";
+    } catch (error) {
+        console.error("❌ Error fetching ASN:", error.message);
+        return "Unknown";
+    }
+}
+
+// ✅ Local bot detection (before AI analysis)
 function isBot(visitorData) {
     return botOrganizations.some(org => visitorData.organization && visitorData.organization.includes(org)) ||
         awsASNs.some(asn => visitorData.asn && visitorData.asn.includes(asn)) || // ✅ Detect AWS by ASN
@@ -43,57 +59,58 @@ function isBot(visitorData) {
         visitorData.confidenceScore < 0.8;
 }
 
-// 🚀 Mistral AI Bot Detection
+// 🚀 AI-Powered Bot Detection (Mistral AI)
 async function analyzeVisitor(visitorData) {
     try {
         const response = await axios.post(
             "https://api.mistral.ai/v1/chat/completions",
             {
-                model: "mistral-tiny", // ✅ Use Mistral-tiny for free & fast processing
+                model: "mistral-tiny",
                 messages: [
-                    { role: "system", content: "You are an AI bot detector. Analyze the visitor data and determine if this is a bot or a human. Respond with 'bot' or 'human'." },
+                    { role: "system", content: "You are an AI bot detector. Analyze the visitor data and determine if this is a bot or a human. Respond with only 'bot' or 'human'." },
                     { role: "user", content: `Analyze this visitor data: ${JSON.stringify(visitorData)}. Classify as 'bot' or 'human'.` }
                 ],
-                temperature: 0.3,
-                max_tokens: 10
+                temperature: 0.1, // 🔥 Lower temp for accurate results
+                max_tokens: 5 // 🔥 Short responses (fixes cut-off responses)
             },
             {
                 headers: { Authorization: `Bearer ${MISTRAL_API_KEY}` }
             }
         );
 
-        return response.data.choices[0].message.content.toLowerCase();
+        const result = response.data.choices[0].message.content.trim().toLowerCase();
+        return result === "bot" ? "bot" : "human"; // ✅ Forces valid response
     } catch (error) {
         console.error("❌ Mistral API Error:", error.response ? error.response.data : error.message);
-        return "unknown";  // ✅ Fallback to prevent API errors from breaking detection
+        return "unknown";
     }
 }
 
-// 🚀 API Endpoint to Classify Users
+// ✅ API Route to Classify Visitors
 app.post("/analyze", async (req, res) => {
     const visitorData = req.body;
 
     // Fetch ASN (Autonomous System Number)
-    try {
-        const ipResponse = await axios.get(`https://ipinfo.io/${visitorData.ip}/json?token=c180f76ac7988c`);
-        visitorData.asn = ipResponse.data.asn || "Unknown";
-        visitorData.organization = ipResponse.data.org || visitorData.organization; // Fallback for missing org info
-    } catch (error) {
-        console.error("❌ Error fetching ASN data:", error.message);
-        visitorData.asn = "Unknown";
-    }
+    visitorData.asn = await getASN(visitorData.ip);
+    visitorData.organization = visitorData.organization || "Unknown"; 
 
     console.log("🔍 Incoming Visitor Data:", visitorData);
 
+    // 1️⃣ Local bot detection
     const isBotDetected = isBot(visitorData);
+
+    // 2️⃣ AI bot detection (Mistral AI)
     const aiResult = await analyzeVisitor(visitorData);
 
-    console.log(`🛑 Visitor (${visitorData.ip}) classified as: ${isBotDetected ? "bot" : aiResult}`);
+    // 3️⃣ Final classification
+    const finalResult = isBotDetected ? "bot" : aiResult;
 
-    res.json({ result: isBotDetected ? "bot" : aiResult });
+    console.log(`🛑 Visitor (${visitorData.ip}) classified as: ${finalResult}`);
+
+    res.json({ result: finalResult });
 });
 
-// 🚀 Server Start
+// ✅ Server Start
 app.get("/", (req, res) => {
     res.send("Mistral AI Bot Detection Server is running.");
 });
