@@ -7,14 +7,16 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.17.1",
-    "axios": "^1.3.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.0",
-    "fs": "0.0.1-security",
-    "puppeteer-extra": "^3.3.4",
-    "puppeteer-extra-plugin-stealth": "^2.11.1",
-    "useragent": "^2.3.0"
-  },
+  "express": "^4.17.1",
+  "axios": "^1.3.0",
+  "cors": "^2.8.5",
+  "dotenv": "^16.0.0",
+  "fs": "0.0.1-security",
+  "puppeteer-extra": "^4.0.0",
+  "puppeteer-extra-plugin-stealth": "^2.11.3",
+  "rimraf": "^4.4.0",
+  "glob": "^9.3.0",
+  "useragent": "^2.3.0"
+},
   "license": "MIT"
 }
