@@ -49,7 +49,7 @@ async function analyzeVisitor(visitorData) {
         const response = await axios.post(
             "https://api.openai.com/v1/chat/completions",
             {
-                model: "gpt-4",
+                model: "gpt-3.5-turbo",  // 🔥 FIXED: Use GPT-3.5 Turbo instead of GPT-4
                 messages: [
                     { role: "system", content: "You are an AI bot detector. Analyze the visitor data and determine if this is a bot or a human. Respond with 'bot' or 'human'." },
                     { role: "user", content: `Analyze this visitor data: ${JSON.stringify(visitorData)}. Classify as 'bot' or 'human'.` }
@@ -65,7 +65,7 @@ async function analyzeVisitor(visitorData) {
         return response.data.choices[0].message.content.toLowerCase();
     } catch (error) {
         console.error("❌ OpenAI API Error:", error.response ? error.response.data : error.message);
-        return "unknown";
+        return "unknown";  // ✅ Fallback to prevent API errors from breaking detection
     }
 }
 
@@ -77,6 +77,7 @@ app.post("/analyze", async (req, res) => {
     try {
         const ipResponse = await axios.get(`https://ipinfo.io/${visitorData.ip}/json?token=c180f76ac7988c`);
         visitorData.asn = ipResponse.data.asn || "Unknown";
+        visitorData.organization = ipResponse.data.org || visitorData.organization; // Fallback for missing org info
     } catch (error) {
         console.error("❌ Error fetching ASN data:", error.message);
         visitorData.asn = "Unknown";
